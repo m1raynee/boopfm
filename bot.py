@@ -1,4 +1,3 @@
-import discord
 from discord.ext import commands
 
 BULK = False
@@ -13,15 +12,3 @@ class Bot(commands.Bot):
         self.load_extension("cogs.music")
         self.load_extension("jishaku")
 
-    async def on_ready(self):
-        print(f"logged as {self.user}, syncing... ")
-
-        guild = discord.Object(824997091075555419)
-        coded = self.tree.get_commands(guild=guild)
-        fetched = await self.tree.fetch_commands(guild=guild)
-
-        print(coded, fetched, sep='\n')
-
-        if BULK or (len(coded) != len(fetched)):
-            a = await self.tree.sync(guild=guild)
-            print(f'synced {a}')

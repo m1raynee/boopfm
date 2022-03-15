@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Optional, Union
 
 import wavelink
@@ -51,8 +52,8 @@ class MusicCog(commands.Cog):
             port=2333,
             password='youshallnotpass',
             spotify_client=spotify.SpotifyClient(
-                client_id='47f9a00b99fe4d868eb063ec9bad3054',
-                client_secret='d2608f9ca5c247a38313658b9edc62fb'
+                client_id=os.environ.get('SPOTIFY_CLIENT_ID'),
+                client_secret=os.environ.get('SPOTIFY_CLIENT_SECRET')
             )
         )
 
