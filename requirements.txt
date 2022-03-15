@@ -1,0 +1,4 @@
+git+https://github.com/rapptz/discord.py
+git+https://github.com/rapptz/discord-ext-menus
+git+https://github.com/PythonistaGuild/Wavelink
+jishaku
