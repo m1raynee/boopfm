@@ -1,14 +1,18 @@
 import asyncio
-from typing import Dict, Optional, Any
+from typing import TYPE_CHECKING, Dict, Optional, Any
 
 import discord
 from discord.ext import menus
+
+if TYPE_CHECKING:
+    from bot import Bot
 
 class PaginatorView(discord.ui.View):
     def __init__(
         self,
         source: menus.PageSource,
         *,
+        bot: Bot = None,
         interaction: discord.Interaction,
         check_embeds: bool = True,
         compact: bool = False,
@@ -105,7 +109,7 @@ class PaginatorView(discord.ui.View):
             pass
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user and interaction.user in (self.interaction.bot.owner, self.interaction.author):
+        if interaction.user and interaction.user_id in (self.interaction.bot.owner_id, self.interaction.author_id):
             return True
         await interaction.response.send_message('This pagination menu cannot be controlled by you, sorry!', ephemeral=True)
         return False
@@ -190,6 +194,8 @@ class PaginatorView(discord.ui.View):
         self.stop()
 
 class BaseListSource(menus.ListPageSource):
+    BASE_COLOR = 0x0084c7
+
     def base_embed(self, view: PaginatorView, entries) -> discord.Embed:
         e = discord.Embed(
             color=0x0084c7
@@ -198,8 +204,8 @@ class BaseListSource(menus.ListPageSource):
             offset = view.current_page*self.per_page
             e.set_footer(
                 text=(
-                    f'Page {view.current_page+1}/{self.get_max_pages()} | '
-                    f'Showed {offset+1}-{offset+len(entries)}/{len(self.entries)}'
+                    f'p. {view.current_page+1}/{self.get_max_pages()} | '
+                    f'ent. {offset+1}-{offset+len(entries)}/{len(self.entries)}'
                 )
             )
         return e

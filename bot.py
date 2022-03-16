@@ -9,6 +9,7 @@ class Bot(commands.Bot):
             commands.when_mentioned,
             enable_debug_events=True,
         )
-        self.load_extension("cogs.music")
-        self.load_extension("jishaku")
 
+    async def setup_hook(self) -> None:
+        await self.load_extension("cogs.music")
+        await self.load_extension("jishaku")

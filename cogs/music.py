@@ -10,12 +10,47 @@ from discord import app_commands
 from discord.ext import commands
 
 from .utils.funcs import send
+from .utils.paginator import PaginatorView, BaseListSource
 
 if TYPE_CHECKING:
     from ..bot import Bot
 
     class Track(wavelink.PartialTrack):
         requester: discord.Member
+
+def humanize_seconds(s: int):
+    hours, minutes = divmod(abs(s), 3600)
+    minutes, seconds = divmod(minutes, 60)
+    times = []
+    for i, time in enumerate((hours, minutes, seconds)):
+        if i == hours == 0:
+            continue
+        str_time = f'{time:02}'
+        times.append(str_time)
+    return f'{":".join(times)} {"left" if s <= 0 else ""}'
+
+
+class QueueListSource(BaseListSource):
+    def __init__(self, player: Player, *, per_page):
+        super().__init__(player.queue._queue, per_page=per_page)
+
+    async def format_page(self, view: PaginatorView, page: list[Track]):
+        offset = self.per_page*view.current_page+1
+
+        emb = self.base_embed(view, page)
+        emb.title = '\N{MUSICAL NOTE} Текущая очередь'
+
+        emb.add_field(
+            name='Трек',
+            value='\n'.join([f'{i}. {track}' for i, track in enumerate(page, offset)])
+        )
+        emb.add_field(name='Length', value='\n'.join([
+            humanize_seconds(
+                int((discord.utils.utcnow() - self.player.start).total_seconds()) - track.length//1000
+            )
+            if self.player.queue.next == offset+i else humanize_seconds(track.length//1000)
+            for i, track in enumerate(page)
+        ]))
 
 class Player(wavelink.Player):
     def __init__(self, interaction: discord.Interaction):
@@ -41,9 +76,7 @@ class MusicCog(commands.Cog):
     def __init__(self, bot: Bot) -> None:
         self.bot = bot
 
-        self.bot.loop.create_task(self.start_node())
-
-    async def start_node(self):
+    async def cog_load(self):
         await self.bot.wait_until_ready()
 
         await wavelink.NodePool.create_node(
@@ -63,14 +96,14 @@ class MusicCog(commands.Cog):
         self,
         inter: discord.Interaction,
         channel: Optional[Union[discord.VoiceChannel, discord.StageChannel]] = None
-    ):
+    ) -> Player:
         """Connect to the voice channel"""
         channel = channel or inter.user.voice.channel
         if channel is None:
             raise Exception  # TODO
 
         vc = await channel.connect(cls=Player(inter))
-        emb = discord.Embed(description=f'Подключён к {channel.mention}', color=0x00E09D)
+        emb = discord.Embed(description=f'Подключён к {channel.mention}', color=BaseListSource.BASE_COLOR)
         await send(inter, embed=emb)
 
         return vc
@@ -81,10 +114,12 @@ class MusicCog(commands.Cog):
         self,
         inter: discord.Interaction,
         query: str
-    ):
+    ) -> None:
         """Play tracks with given query (Spotify supported)"""
         if not (vc := inter.guild.voice_client):
             vc: wavelink.Player = await self.connect.callback(self, inter)
+        else:
+            await inter.response.defer()
 
         if decoded := spotify.decode_url(query):
             tracks: list[Track] = await get_spotify_tracks(decoded)  # type: ignore
@@ -100,18 +135,22 @@ class MusicCog(commands.Cog):
         if len(tracks) == 1:
             track = tracks[0]
             emb = discord.Embed(
-                description=f'Трек {track.title} [{track.requester.mention}] добавлен в очередь',
-                color=0x00E09D
+                description=f'Трек {track.title} [{inter.user.mention}] добавлен в очередь',
+                color=BaseListSource.BASE_COLOR
             )
         else:
             emb = discord.Embed(
-                description=f'{len(tracks)} треков добавлено в очередь',
-                color=0x00E09D
+                description=f'{len(tracks)} треков [{inter.user.mention}] добавлено в очередь',
+                color=BaseListSource.BASE_COLOR
             )
         await send(inter, embed=emb)
         
         if vc.queue.count and not vc.is_playing():
             await vc.play(await vc.queue.get_wait())
+    
+    @app_commands.command()
+    async def queue(self, inter: discord.Interaction) -> None:
+        ...
     
     @commands.Cog.listener()
     async def on_wavelink_track_start(self, player: Player, track: wavelink.YouTubeTrack):
@@ -134,5 +173,5 @@ class MusicCog(commands.Cog):
         else:
             await self.bot.change_presence(activity=None)
 
-def setup(bot: Bot):
-    bot.add_cog(MusicCog(bot), guilds=[discord.Object(824997091075555419)])
+async def setup(bot: Bot):
+    await bot.add_cog(MusicCog(bot), guilds=[discord.Object(824997091075555419)])
