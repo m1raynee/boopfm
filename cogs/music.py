@@ -76,9 +76,8 @@ class MusicCog(commands.Cog):
     def __init__(self, bot: Bot) -> None:
         self.bot = bot
 
-    async def cog_load(self):
-        await self.bot.wait_until_ready()
-
+    @commands.Cog.listener()
+    async def on_ready(self):
         await wavelink.NodePool.create_node(
             bot=self.bot,
             host='127.0.0.1',

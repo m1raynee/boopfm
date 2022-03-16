@@ -1,4 +1,5 @@
 from discord.ext import commands
+import jishaku
 
 BULK = False
 
@@ -11,5 +12,10 @@ class Bot(commands.Bot):
         )
 
     async def setup_hook(self) -> None:
+        print('loading cogs')
         await self.load_extension("cogs.music")
-        await self.load_extension("jishaku")
+        await self.add_cog(jishaku.Jishaku(bot=self))
+        print('end')
+    
+    async def on_ready(self):
+        print(f'ready {self.user}')
